@@ -22,9 +22,8 @@
 11. Data Quality Framework
 12. Observability and Logging
 13. Containerization
-14. JD Alignment
-15. Future Roadmap
-16. About
+14. Future Roadmap
+15. About
 
 ---
 
@@ -1177,26 +1176,10 @@ docker run -v $(pwd)/input_docs:/app/input_docs \
 
 ---
 
-## 14. JD ALIGNMENT
-
-| JD Requirement | Implementation in This Project |
-|---|---|
-| ETL/ELT workflows for unstructured data | run_pipeline.py — full Extract, Transform, Load |
-| Document processing: PDFs, images, OCR | ocr_extract.py + extract_pdf_text.py |
-| Structured JSON output (model-ready) | to_json.py — validated JSON per document |
-| Schema validation and data quality | Pydantic v2 — type-safe schema enforcement |
-| Data deduplication | MD5 hashing + field comparison + DB UNIQUE constraints |
-| Vector database integration | ChromaDB with sentence transformer embeddings |
-| RAG system data pipeline | ChromaDB semantic search — retrieval layer for RAG |
-| Relational database | PostgreSQL 17 with psycopg2 |
-| Observability and logging | Python logging — full pipeline audit trail |
-| Containerization | Dockerfile with Tesseract + Poppler |
-| Data quality checks | 3-layer quality framework |
-| Python proficiency | All scripts in Python 3.13 |
 
 ---
 
-## 15. FUTURE ROADMAP
+## 14. FUTURE ROADMAP
 
 ### Short Term
 - **FastAPI REST endpoint** — accept file uploads via HTTP POST, return JSON
@@ -1217,7 +1200,7 @@ docker run -v $(pwd)/input_docs:/app/input_docs \
 
 ---
 
-## 16. ABOUT
+## 15. ABOUT
 
 **Vishal S**
 AI Data & Platform Engineer
