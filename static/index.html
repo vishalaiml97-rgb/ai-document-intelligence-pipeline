@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Document Intelligence Pipeline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #1a1f2e, #0d1321);
+      border-bottom: 1px solid #2a2f3e;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header .logo { font-size: 28px; }
+    header h1 { font-size: 22px; font-weight: 700; color: #ffffff; }
+    header p  { font-size: 13px; color: #888; margin-top: 2px; }
+    .badge {
+      margin-left: auto;
+      background: #1e3a2f;
+      color: #4ade80;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid #4ade8044;
+    }
+
+    /* Layout */
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Cards */
+    .card {
+      background: #1a1f2e;
+      border: 1px solid #2a2f3e;
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed #3a4050;
+      border-radius: 10px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #6366f1;
+      background: #1e2140;
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 48px; margin-bottom: 12px; }
+    .upload-zone h3 { font-size: 18px; color: #fff; margin-bottom: 8px; }
+    .upload-zone p  { font-size: 13px; color: #666; }
+    .file-types { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .file-type-badge {
+      background: #2a2f3e; color: #a0aec0;
+      padding: 4px 10px; border-radius: 6px; font-size: 12px;
+    }
+
+    /* Selected file */
+    .selected-file {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: #1e2140;
+      border: 1px solid #6366f1;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 16px;
+    }
+    .selected-file.show { display: flex; }
+    .selected-file .file-icon { font-size: 24px; }
+    .selected-file .file-info { flex: 1; }
+    .selected-file .file-name { font-size: 14px; color: #fff; font-weight: 500; }
+    .selected-file .file-size { font-size: 12px; color: #888; margin-top: 2px; }
+
+    /* Button */
+    .btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 16px;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Result */
+    .result-box {
+      display: none;
+      background: #0f1117;
+      border: 1px solid #2a2f3e;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+    .result-box.show { display: block; }
+    .result-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 16px;
+    }
+    .status-badge {
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .status-success { background: #1e3a2f; color: #4ade80; border: 1px solid #4ade8044; }
+    .status-duplicate { background: #3a2f1e; color: #f59e0b; border: 1px solid #f59e0b44; }
+    .status-error { background: #3a1e1e; color: #f87171; border: 1px solid #f8717144; }
+
+    /* Fields grid */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .field-item {
+      background: #1a1f2e;
+      border: 1px solid #2a2f3e;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .field-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .field-value { font-size: 15px; color: #fff; font-weight: 500; margin-top: 4px; }
+    .field-value.amount { color: #4ade80; font-size: 18px; font-weight: 700; }
+    .field-value.empty { color: #444; font-style: italic; font-size: 13px; }
+
+    /* JSON toggle */
+    .json-toggle {
+      background: none; border: 1px solid #3a4050; color: #888;
+      padding: 6px 14px; border-radius: 6px; font-size: 12px;
+      cursor: pointer; margin-top: 16px;
+    }
+    .json-toggle:hover { color: #fff; border-color: #6366f1; }
+    .json-raw {
+      display: none; background: #0a0d14; border: 1px solid #2a2f3e;
+      border-radius: 8px; padding: 16px; margin-top: 8px;
+      font-family: 'Courier New', monospace; font-size: 13px;
+      color: #a0aec0; white-space: pre; overflow-x: auto;
+    }
+    .json-raw.show { display: block; }
+
+    /* Search */
+    .search-row {
+      display: flex; gap: 12px;
+    }
+    .search-input {
+      flex: 1;
+      background: #0f1117;
+      border: 1px solid #2a2f3e;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    .search-input:focus { border-color: #6366f1; }
+    .search-input::placeholder { color: #444; }
+    .search-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white; border: none;
+      padding: 12px 24px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.3s; white-space: nowrap;
+    }
+    .search-btn:hover { opacity: 0.9; }
+
+    /* Search results */
+    .search-results { margin-top: 16px; }
+    .search-result-item {
+      background: #0f1117;
+      border: 1px solid #2a2f3e;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .rank-badge {
+      background: #6366f1;
+      color: white;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .result-info { flex: 1; }
+    .result-vendor { font-size: 15px; color: #fff; font-weight: 600; }
+    .result-meta { font-size: 12px; color: #888; margin-top: 4px; }
+    .result-amount { font-size: 18px; color: #4ade80; font-weight: 700; }
+    .result-preview {
+      font-size: 12px; color: #555;
+      margin-top: 8px; line-height: 1.5;
+      border-top: 1px solid #2a2f3e;
+      padding-top: 8px;
+    }
+
+    /* Records table */
+    .tab-row {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .tab {
+      padding: 8px 20px; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer; border: 1px solid #2a2f3e;
+      color: #888; background: #0f1117; transition: all 0.3s;
+    }
+    .tab.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+
+    table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    th {
+      text-align: left; padding: 10px 14px;
+      color: #666; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid #2a2f3e;
+      background: #0f1117;
+    }
+    td {
+      padding: 12px 14px; border-bottom: 1px solid #1e2330;
+      color: #c0c8d8;
+    }
+    tr:hover td { background: #1e2330; }
+    .amount-cell { color: #4ade80; font-weight: 600; }
+    .empty-state {
+      text-align: center; padding: 48px;
+      color: #444; font-size: 14px;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #1a1f2e;
+      border: 1px solid #2a2f3e;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-number { font-size: 32px; font-weight: 700; color: #6366f1; }
+    .stat-label  { font-size: 12px; color: #666; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .search-row { flex-direction: column; }
+      header { flex-wrap: wrap; }
+      .badge { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🧠</div>
+  <div>
+    <h1>AI Document Intelligence Pipeline</h1>
+    <p>OCR · Field Extraction · PostgreSQL · ChromaDB Vector Search</p>
+  </div>
+  <span class="badge" id="healthBadge">● Checking...</span>
+</header>
+
+<div class="container">
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-number" id="statTotal">-</div>
+      <div class="stat-label">Total Processed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statReceipts">-</div>
+      <div class="stat-label">Receipts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statInvoices">-</div>
+      <div class="stat-label">Invoices</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statAmount" style="font-size:22px;">-</div>
+      <div class="stat-label">Total Amount</div>
+    </div>
+  </div>
+
+  <!-- Upload Section -->
+  <div class="card">
+    <h2>📄 Upload Documents</h2>
+
+    <!-- Mode Tabs -->
+    <div class="tab-row" style="margin-bottom:20px;">
+      <button class="tab active" id="modeTabSingle" onclick="switchMode('single')">Single / Multiple Files</button>
+      <button class="tab" id="modeTabBatch" onclick="switchMode('batch')">Run Full Pipeline</button>
+    </div>
+
+    <!-- Single / Multiple Mode -->
+    <div id="modeSingle">
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.tiff,.bmp" multiple />
+        <div class="upload-icon">📁</div>
+        <h3>Drop your documents here</h3>
+        <p>or click to browse — select multiple files at once</p>
+        <div class="file-types">
+          <span class="file-type-badge">PDF</span>
+          <span class="file-type-badge">JPEG</span>
+          <span class="file-type-badge">PNG</span>
+          <span class="file-type-badge">TIFF</span>
+          <span class="file-type-badge">BMP</span>
+        </div>
+      </div>
+
+      <div id="selectedFilesList" style="margin-top:12px;"></div>
+
+      <button class="btn" id="processBtn" disabled onclick="processDocuments()">
+        <span class="spinner" id="spinner"></span>
+        <span id="btnText">⚡ Process Documents</span>
+      </button>
+    </div>
+
+    <!-- Batch Pipeline Mode -->
+    <div id="modeBatch" style="display:none;">
+      <div style="background:#0f1117; border:1px solid #2a2f3e; border-radius:10px; padding:28px; text-align:center;">
+        <div style="font-size:48px; margin-bottom:12px;">🚀</div>
+        <h3 style="color:#fff; font-size:18px; margin-bottom:8px;">Run Full Pipeline</h3>
+        <p style="color:#666; font-size:13px; margin-bottom:20px;">
+          Processes all files currently in the <code style="color:#6366f1;">input_docs/</code> folder.<br/>
+          Includes deduplication, validation, PostgreSQL, and ChromaDB storage.
+        </p>
+        <button class="btn" style="max-width:320px; margin:0 auto;" onclick="runFullPipeline()">
+          <span class="spinner" id="pipelineSpinner"></span>
+          <span id="pipelineBtnText">🚀 Run Full Pipeline</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="result-box" id="resultBox" style="margin-top:16px;">
+      <div class="result-header">
+        <span id="resultStatusBadge" class="status-badge"></span>
+        <span id="resultFileName" style="font-size:13px; color:#888;"></span>
+      </div>
+      <div id="multiResultsList"></div>
+      <div class="fields-grid" id="fieldsGrid"></div>
+      <button class="json-toggle" id="jsonToggleBtn" onclick="toggleJson()" style="display:none;">{ } View Raw JSON</button>
+      <pre class="json-raw" id="jsonRaw"></pre>
+    </div>
+  </div>
+
+  <!-- Semantic Search -->
+  <div class="card">
+    <h2>🔍 Semantic Search</h2>
+    <p style="font-size:13px; color:#666; margin-bottom:16px;">
+      Search documents by meaning using ChromaDB vector embeddings
+    </p>
+    <div class="search-row">
+      <input
+        type="text"
+        class="search-input"
+        id="searchInput"
+        placeholder="e.g. software training payment, invoice from vendor..."
+        onkeydown="if(event.key==='Enter') runSearch()"
+      />
+      <button class="search-btn" onclick="runSearch()">🔎 Search</button>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <!-- All Records -->
+  <div class="card">
+    <h2>🗄️ All Records — PostgreSQL</h2>
+    <div class="tab-row">
+      <button class="tab active" id="tabReceipts" onclick="switchTab('receipts')">Receipts</button>
+      <button class="tab" id="tabInvoices" onclick="switchTab('invoices')">Invoices</button>
+    </div>
+    <div id="tableContainer"></div>
+  </div>
+
+</div>
+
+<script>
+  let allData = { receipts: [], invoices: [] };
+  let currentTab = 'receipts';
+  let selectedFiles = [];
+
+  // ── On Load ────────────────────────────────────────────────────────────────
+
+  window.onload = async () => {
+    await checkHealth();
+    await loadRecords();
+  };
+
+  async function checkHealth() {
+    try {
+      const res = await fetch('/health');
+      const badge = document.getElementById('healthBadge');
+      badge.textContent = '● Live';
+      badge.style.background = '#1e3a2f';
+      badge.style.color = '#4ade80';
+      badge.style.borderColor = '#4ade8044';
+    } catch {
+      document.getElementById('healthBadge').textContent = '● Offline';
+    }
+  }
+
+  // ── Mode Switch ────────────────────────────────────────────────────────────
+
+  function switchMode(mode) {
+    document.getElementById('modeSingle').style.display = mode === 'single' ? 'block' : 'none';
+    document.getElementById('modeBatch').style.display = mode === 'batch' ? 'block' : 'none';
+    document.getElementById('modeTabSingle').classList.toggle('active', mode === 'single');
+    document.getElementById('modeTabBatch').classList.toggle('active', mode === 'batch');
+    document.getElementById('resultBox').classList.remove('show');
+  }
+
+  // ── File Selection ─────────────────────────────────────────────────────────
+
+  document.getElementById('fileInput').addEventListener('change', function() {
+    selectedFiles = Array.from(this.files);
+    if (!selectedFiles.length) return;
+
+    const icons = { pdf: '📄', jpg: '🖼️', jpeg: '🖼️', png: '🖼️', tiff: '🖼️', bmp: '🖼️' };
+    const listEl = document.getElementById('selectedFilesList');
+
+    listEl.innerHTML = selectedFiles.map(f => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      return `<div class="selected-file show" style="margin-bottom:6px;">
+        <span class="file-icon">${icons[ext] || '📄'}</span>
+        <div class="file-info">
+          <div class="file-name">${f.name}</div>
+          <div class="file-size">${(f.size / 1024).toFixed(1)} KB</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('processBtn').disabled = false;
+    document.getElementById('btnText').textContent = `⚡ Process ${selectedFiles.length} Document${selectedFiles.length > 1 ? 's' : ''}`;
+    document.getElementById('resultBox').classList.remove('show');
+  });
+
+  // Drag and drop
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    document.getElementById('fileInput').dispatchEvent(new Event('change'));
+  });
+
+  // ── Process Multiple Documents ─────────────────────────────────────────────
+
+  async function processDocuments() {
+    if (!selectedFiles.length) return;
+
+    const btn = document.getElementById('processBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = `Processing ${selectedFiles.length} files...`;
+
+    const formData = new FormData();
+    selectedFiles.forEach(f => formData.append('files', f));
+
+    try {
+      const res = await fetch('/process-multiple', { method: 'POST', body: formData });
+      const data = await res.json();
+      showMultiResults(data);
+      await loadRecords();
+    } catch (err) {
+      showResult('error', 'Upload failed', null, err.message);
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = `⚡ Process ${selectedFiles.length} Document${selectedFiles.length > 1 ? 's' : ''}`;
+    }
+  }
+
+  // ── Run Full Pipeline ──────────────────────────────────────────────────────
+
+  async function runFullPipeline() {
+    const btn = document.querySelector('#modeBatch .btn');
+    const spinner = document.getElementById('pipelineSpinner');
+    const btnText = document.getElementById('pipelineBtnText');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Running pipeline...';
+
+    try {
+      const res = await fetch('/run-pipeline', { method: 'POST' });
+      const data = await res.json();
+      showMultiResults(data);
+      await loadRecords();
+    } catch (err) {
+      showResult('error', 'Pipeline failed', null, err.message);
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '🚀 Run Full Pipeline';
+    }
+  }
+
+  // ── Show Multi Results ─────────────────────────────────────────────────────
+
+  function showMultiResults(data) {
+    const box = document.getElementById('resultBox');
+    const badge = document.getElementById('resultStatusBadge');
+    const fileNameEl = document.getElementById('resultFileName');
+    const grid = document.getElementById('fieldsGrid');
+    const multiList = document.getElementById('multiResultsList');
+    const jsonToggle = document.getElementById('jsonToggleBtn');
+
+    box.classList.add('show');
+    grid.innerHTML = '';
+    jsonToggle.style.display = 'none';
+    document.getElementById('jsonRaw').classList.remove('show');
+
+    const s = data.summary;
+    badge.className = 'status-badge status-success';
+    badge.textContent = `✓ ${s.success} Success · ${s.duplicate} Duplicate · ${s.failed} Failed`;
+    fileNameEl.textContent = `${s.total} files processed`;
+
+    multiList.innerHTML = data.results.map(r => {
+      const statusColor = r.status === 'success' ? '#4ade80' : r.status === 'duplicate' ? '#f59e0b' : '#f87171';
+      const statusIcon = r.status === 'success' ? '✓' : r.status === 'duplicate' ? '⚠' : '✗';
+      const ext = (r.file_name || '').split('.').pop().toLowerCase();
+      const icon = ext === 'pdf' ? '📄' : '🖼️';
+
+      let details = '';
+      if (r.extracted_data) {
+        const d = r.extracted_data;
+        const amount = d.amount_paid || d.total_amount;
+        const vendor = d.vendor_name;
+        const num = d.receipt_number || d.invoice_number;
+        details = `<span style="color:#888; font-size:12px; margin-left:8px;">
+          ${vendor ? vendor + ' · ' : ''}${num ? '#' + num + ' · ' : ''}${amount ? '$' + amount : ''}
+        </span>`;
+      }
+
+      return `<div style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #1e2330;">
+        <span style="font-size:18px;">${icon}</span>
+        <span style="flex:1; font-size:13px; color:#c0c8d8;">${r.file_name}${details}</span>
+        <span style="color:${statusColor}; font-size:13px; font-weight:600;">${statusIcon} ${r.status}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function showResult(status, fileName, data, errorMsg) {
+    const box = document.getElementById('resultBox');
+    const badge = document.getElementById('resultStatusBadge');
+    const fileNameEl = document.getElementById('resultFileName');
+    const grid = document.getElementById('fieldsGrid');
+    const jsonRaw = document.getElementById('jsonRaw');
+    const jsonToggle = document.getElementById('jsonToggleBtn');
+    document.getElementById('multiResultsList').innerHTML = '';
+
+    box.classList.add('show');
+    fileNameEl.textContent = fileName;
+
+    if (status === 'success') {
+      badge.className = 'status-badge status-success';
+      badge.textContent = '✓ Successfully Processed';
+      grid.innerHTML = buildFieldsGrid(data);
+      jsonRaw.textContent = JSON.stringify(data, null, 2);
+      jsonToggle.style.display = 'inline-block';
+    } else if (status === 'duplicate') {
+      badge.className = 'status-badge status-duplicate';
+      badge.textContent = '⚠ Duplicate — Already Processed';
+      grid.innerHTML = '<p style="color:#888; font-size:13px;">This document was already processed previously.</p>';
+      jsonToggle.style.display = 'none';
+    } else {
+      badge.className = 'status-badge status-error';
+      badge.textContent = '✗ Processing Failed';
+      grid.innerHTML = `<p style="color:#f87171; font-size:13px;">${errorMsg}</p>`;
+      jsonToggle.style.display = 'none';
+    }
+  }
+
+  function buildFieldsGrid(data) {
+    if (!data) return '';
+    const skipFields = ['file_name', 'document_type'];
+    let html = '';
+
+    // Doc type badge
+    html += `<div class="field-item" style="grid-column: 1/-1; background:#0f1117;">
+      <div class="field-label">Document Type</div>
+      <div class="field-value" style="color:#6366f1; text-transform:capitalize;">${data.document_type || '-'}</div>
+    </div>`;
+
+    for (const [key, value] of Object.entries(data)) {
+      if (skipFields.includes(key)) continue;
+      const label = key.replace(/_/g, ' ');
+      const isAmount = key.includes('amount') || key.includes('total');
+      const displayVal = value !== null && value !== '' ? value : null;
+      html += `<div class="field-item">
+        <div class="field-label">${label}</div>
+        <div class="field-value ${isAmount ? 'amount' : ''} ${!displayVal ? 'empty' : ''}">
+          ${isAmount && displayVal ? '$' + displayVal : (displayVal || 'Not found')}
+        </div>
+      </div>`;
+    }
+    return html;
+  }
+
+  function toggleJson() {
+    document.getElementById('jsonRaw').classList.toggle('show');
+  }
+
+  // ── Semantic Search ────────────────────────────────────────────────────────
+
+  async function runSearch() {
+    const query = document.getElementById('searchInput').value.trim();
+    if (!query) return;
+
+    const container = document.getElementById('searchResults');
+    container.innerHTML = '<p style="color:#666; font-size:13px; padding:12px 0;">Searching...</p>';
+
+    try {
+      const res = await fetch(`/search?query=${encodeURIComponent(query)}&n=3`);
+      const data = await res.json();
+
+      if (!data.results || data.results.length === 0) {
+        container.innerHTML = '<p style="color:#666; font-size:13px; padding:12px 0;">No results found.</p>';
+        return;
+      }
+
+      container.innerHTML = data.results.map(r => `
+        <div class="search-result-item">
+          <div class="rank-badge">${r.rank}</div>
+          <div class="result-info">
+            <div class="result-vendor">${r.vendor_name || 'Unknown Vendor'}</div>
+            <div class="result-meta">
+              ${r.document_type} · ${r.date || 'No date'} · ${r.file_name}
+            </div>
+            <div class="result-preview">${r.preview}</div>
+          </div>
+          <div class="result-amount">${r.amount ? '$' + r.amount : '-'}</div>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<p style="color:#f87171; font-size:13px;">${err.message}</p>`;
+    }
+  }
+
+  // ── Records Table ──────────────────────────────────────────────────────────
+
+  async function loadRecords() {
+    try {
+      const res = await fetch('/records');
+      allData = await res.json();
+      updateStats();
+      renderTable(currentTab);
+    } catch (err) {
+      console.error('Failed to load records:', err);
+    }
+  }
+
+  function updateStats() {
+    const receipts = allData.receipts || [];
+    const invoices = allData.invoices || [];
+    const total = receipts.length + invoices.length;
+    const totalAmount = receipts.reduce((s, r) => s + (r.amount_paid || 0), 0)
+                      + invoices.reduce((s, i) => s + (i.total_amount || 0), 0);
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statReceipts').textContent = receipts.length;
+    document.getElementById('statInvoices').textContent = invoices.length;
+    document.getElementById('statAmount').textContent = '$' + totalAmount.toFixed(2);
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tabReceipts').classList.toggle('active', tab === 'receipts');
+    document.getElementById('tabInvoices').classList.toggle('active', tab === 'invoices');
+    renderTable(tab);
+  }
+
+  function renderTable(tab) {
+    const container = document.getElementById('tableContainer');
+    const rows = allData[tab] || [];
+
+    if (rows.length === 0) {
+      container.innerHTML = `<div class="empty-state">No ${tab} found. Upload documents to get started.</div>`;
+      return;
+    }
+
+    if (tab === 'receipts') {
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Vendor</th>
+              <th>Receipt No.</th>
+              <th>Item</th>
+              <th>Date Paid</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td>${r.id}</td>
+                <td>${r.vendor_name || '-'}</td>
+                <td>${r.receipt_number || '-'}</td>
+                <td>${r.item_description || '-'}</td>
+                <td>${r.date_paid || '-'}</td>
+                <td class="amount-cell">$${r.amount_paid || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    } else {
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Vendor</th>
+              <th>Invoice No.</th>
+              <th>Invoice Date</th>
+              <th>Due Date</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td>${r.id}</td>
+                <td>${r.vendor_name || '-'}</td>
+                <td>${r.invoice_number || '-'}</td>
+                <td>${r.invoice_date || '-'}</td>
+                <td>${r.due_date || '-'}</td>
+                <td class="amount-cell">$${r.total_amount || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+  }
+</script>
+
+</body>
+</html>

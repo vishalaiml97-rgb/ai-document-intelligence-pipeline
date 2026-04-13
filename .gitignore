@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+chroma_db/
+logs/
+*.log
+input_docs/
+raw_text/
+clean_text/
+json_output/
+*.zip
+~$*
+.env
+*.egg-info/
+dist/
+build/
